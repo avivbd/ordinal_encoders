@@ -1,1 +1,2 @@
 # ordinal_encoders
+Jupyter notebook containing sklearn style transformer which takes categorical data and encodes it into ordinal data. If unkown values are encountered during transform stage (for instance if tranforming test data), then the transformer imputes values from the categories learned during the fit. The imputation can use the most common value (mode) or choose from previously encountered values in proportion to their preponderance in the data, or replace them with None. Nan values can be retained or replaced with a code. 
