@@ -50,6 +50,10 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         using a one-hot aka one-of-K scheme.
     """
 
+    def __init__(self):
+	self.unknown_classes = []
+	self.classes_ = []
+
     def fit(self, y):
         """Fit label encoder
 
