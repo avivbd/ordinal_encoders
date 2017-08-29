@@ -32,7 +32,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
     >>> y_test = ["tokyo", "tokyo", "paris", "Amsterdam"]
     >>> le.transform(y_test)
 
-    UserWarning: y contains new labels: ['Amsterdam']
+    UserWarning: y contains new labels! 
     array([ 0,  0,  1, -1])
 
     Note that unknown classes are mapped to n+1 where n is the size of the training dictionary.
@@ -106,7 +106,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         diff = np.setdiff1d(classes, self.classes_)
         if list(diff):
             self.unknown_classes = diff
-            warnings.warn("y contains new labels: %s" % str(diff))
+            warnings.warn("y contains new labels! See LabelEncoder.unknown_classes" 
             is_unknown_cls = np.in1d(y, self.unknown_classes) 
             inds_ar = np.searchsorted(self.classes_, y)
             inds_ar[is_unknown_cls] = len(self.classes_)
