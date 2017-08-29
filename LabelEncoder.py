@@ -109,7 +109,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
             warnings.warn("y contains new labels: %s" % str(diff))
             is_unknown_cls = np.in1d(y, self.unknown_classes) 
             inds_ar = np.searchsorted(self.classes_, y)
-            inds_ar[is_unknown_cls] = len(self.classes_)+1
+            inds_ar[is_unknown_cls] = len(self.classes_)
             return inds_ar
             
         else:
