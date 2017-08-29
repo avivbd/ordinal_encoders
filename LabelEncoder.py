@@ -3,7 +3,7 @@ import warnings
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
-
+import pandas as pd
 
 
 
@@ -11,7 +11,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
     """Encode labels with value between 0 and n_classes-1.
 
     Read more in the :ref:`User Guide <preprocessing_targets>`.
-    Modified from sklearn by AB Aug 21 2017
+    Modified from sklearn by AB Aug 28 2017
 
     Attributes
     ----------
@@ -21,28 +21,28 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
     Examples
     --------
     >>> le = LabelEncoder()
-    >>> y_train = ["tokyo", "tokyo", "paris", "aberdeen"]
+    >>> y_train = ["paris", "paris", "tokyo"]
     >>> le.fit(y_train)
     >>> le.classes_
-    array(['aberdeen', 'paris', 'tokyo'],dtype='|S8')
+    array(['paris', 'tokyo'],dtype='|S8')
 
     >>> le.transform(y_train)
-    array([2, 2, 1, 0])
+    array([0, 0, 1])
 
     >>> y_test = ["tokyo", "tokyo", "paris", "Amsterdam"]
     >>> le.transform(y_test)
 
     UserWarning: y contains new labels: ['Amsterdam']
-    array([2, 2, 1])
+    array([ 0,  0,  1, -1])
 
-    (note that rows with unknown classes are dropped)
-    (the unknown classes are saved in:)
+    Note that unknown classes are mapped to n+1 where n is the size of the training dictionary.
+    The unknown classes are saved in:
 
     >>> le.unknown_classes
     array(['Amsterdam'], dtype='|S9')
 
-    >>> np.where(y_test==le.unknown_classes)
-    (array([3]),)
+    >>> le.inverse_transform(np.array([0, 0, 1, -1, 0, 2]))
+    array(['paris', 'paris', 'tokyo', 'unknown', 'paris', 'unknown'], dtype=object)
 
     See also
     --------
@@ -99,11 +99,15 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         y = column_or_1d(y, warn=True)
 
         classes = np.unique(y)
-        if len(np.intersect1d(classes, self.classes_)) < len(classes):
-            diff = np.setdiff1d(classes, self.classes_)
+        diff = np.setdiff1d(classes, self.classes_)
+        if list(diff):
             self.unknown_classes = diff
             warnings.warn("y contains new labels: %s" % str(diff))
-            return np.searchsorted(self.classes_, y[y != diff])
+            is_unknown_cls = np.in1d(y, self.unknown_classes) 
+            inds_ar = np.searchsorted(self.classes_, y)
+            inds_ar[is_unknown_cls] = len(self.classes_)+1
+            return inds_ar
+            
         else:
             return np.searchsorted(self.classes_, y)
 
@@ -119,12 +123,19 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         -------
         y : numpy array of shape [n_samples]
         """
+        #is y a numpy array?
+        assert type(y).__module__ == np.__name__
+        
         check_is_fitted(self, 'classes_')
-
-        diff = np.setdiff1d(y, np.arange(len(self.classes_)))
-        if diff:
-            self.unknown_classes = diff
-            warnings.warn("y contains new labels: %s" % str(diff))
-            return self.classes_[y != diff]
+        out_of_range_values = np.setdiff1d(y, range(len(self.classes_)))
+        is_out_of_range = np.in1d(y, out_of_range_values)
+        has_out_of_range = np.any(is_out_of_range)
+        if has_out_of_range:
+            warnings.warn("y contains unknown labels")
+            z = np.empty(np.size(y), dtype=np.object)
+            is_in_range = np.invert(is_out_of_range)
+            z[is_in_range] = self.classes_[y[is_in_range]]
+            z[is_out_of_range] = "unknown"
+            return z
         else:
             return self.classes_[y]
