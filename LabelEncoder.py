@@ -87,7 +87,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
 
         return y
 
-    def transform(self, y):
+    def transform(self, y, drop=False):
         """Transform labels to normalized encoding.
 
         Parameters
@@ -110,7 +110,10 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
             is_unknown_cls = np.in1d(y, self.unknown_classes) 
             inds_ar = np.searchsorted(self.classes_, y)
             inds_ar[is_unknown_cls] = len(self.classes_)
-            return inds_ar
+            if drop==True:
+                return inds_ar[np.invert(is_unknown_cls)]
+            else:
+                return inds_ar
             
         else:
             return np.searchsorted(self.classes_, y)
