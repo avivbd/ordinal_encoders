@@ -18,14 +18,8 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         
         
     def fit_transform(self, y):
-        y = pd.Series(y, dtype=np.object);
-        self.classes, indcs = np.unique(y, return_inverse=True)
-        if self.retain_nan:
-            indcs = pd.Series(indcs, dtype=np.object)
-            indcs = self._ind_to_nan(indcs, y)
-            self.classes = set(self.classes) - set(self.nan_classes)
-            indcs = np.array(indcs, dtype=np.object)
-        return indcs
+        self.fit(y)
+        return self.transform(y)
 
     def fit(self, y_train):
         y_train = pd.Series(y_train, dtype=np.object)
