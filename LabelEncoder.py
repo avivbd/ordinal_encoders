@@ -16,6 +16,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         self.retain_nan = retain_nan
         self.drop_unknown_classes = drop_unknown_classes
         self.use_mode =  use_mode
+        self.test_classes = []
         
         
     def fit_transform(self, y):
@@ -34,9 +35,9 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
     def transform(self, y_test):
         check_is_fitted(self, 'classes')
         y_test = pd.Series(y_test, dtype=np.object)
-        test_classes = pd.Series(y_test.unique())
+        self.test_classes = pd.Series(y_test.unique())
         if self.retain_nan:
-            test_classes = test_classes[np.invert(test_classes.isin(self.nan_classes))]
+            self.test_classes = self.test_classes[np.invert(self.test_classes.isin(self.nan_classes))]
         invert_s = pd.Series(index=self.classes, 
                              data=self.classes.index.values, dtype=np.object)
         inds_s = y_test.map(invert_s)
@@ -44,7 +45,7 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         if self.retain_nan:
             inds_s = self._ind_to_nan(inds_s, y_test)
         
-        diff = set(test_classes) - set(self.classes)
+        diff = np.setdiff1d(self.test_classes, self.classes) #set(test_classes) - set(self.classes)
         if list(diff):
             warnings.warn("y contains new labels!")
             self.unknown_classes = diff
@@ -55,7 +56,10 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
                 inds_s[is_unknown_cls] = len(self.classes)
             if self.drop_unknown_classes:
                 inds_s = inds_s[np.invert(is_unknown_cls)]
-                
+        
+        if not self.retain_nan:
+            inds_s = inds_s.astype(np.int64)
+            
         return inds_s.values
 
             
