@@ -50,6 +50,9 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
             warnings.warn("y contains new labels!")
             self.unknown_classes = diff
             is_unknown_cls = y_test.isin(self.unknown_classes)
+            if pd.isnull(self.unknown_classes).any():
+                is_nan_cls = y_test.isnull()
+                is_unknown_cls = is_unknown_cls | is_nan_cls
             if self.use_mode:
                 inds_s[is_unknown_cls] = 0
             else:
@@ -84,8 +87,11 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
             return self.classes[y]
 
     def _ind_to_nan(self, indcs, y):
-        indcs[pd.isnull(y)] = np.nan
-        for nanclass in self.nan_classes:
+        l = self.nan_classes
+        if np.nan in l:
+            indcs[pd.isnull(y)] = np.nan
+            l.remove(np.nan)
+        for nanclass in l:
             indcs[y==nanclass] = nanclass
         return indcs    
                 
