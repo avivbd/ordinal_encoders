@@ -4,97 +4,92 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import check_is_fitted
 import pandas as pd
+import pdb
 
 
 
 class LabelEncoder(BaseEstimator, TransformerMixin):
 
-    def __init__(self, nan_classes=[np.nan], retain_nan=False, drop_unknown_classes=False, use_mode=True):
+    def __init__(self, nan_classes=[], retain_nan=False, drop_unknown_classes=False, use_mode=False):
         self.unknown_classes = []
-        self.classes = []
+        self.train_classes = []
         self.nan_classes = nan_classes
         self.retain_nan = retain_nan
         self.drop_unknown_classes = drop_unknown_classes
         self.use_mode =  use_mode
         self.test_classes = []
         
-        
     def fit_transform(self, y):
         self.fit(y)
         return self.transform(y)
 
     def fit(self, y_train):
-        y_train = pd.Series(y_train, dtype=np.object)
-        val_cnts = y_train.value_counts()
-        self.most_common_class = val_cnts.index[0]
-        self.classes = pd.Series(data = val_cnts.index)
+        self.y_train = pd.Series(y_train, dtype=np.object)
+        self.train_classes = pd.Series(np.unique(self.y_train))
         if self.retain_nan:
-            self.classes = self.classes[np.invert(self.classes.isin(self.nan_classes))]
-        
+            self.train_classes = self.train_classes[~self.train_classes.isin(self.nan_classes)]
+        if self.use_mode:
+            self.train_val_cnts = self.y_train.value_counts(dropna=False)
+            self.most_common_class = self.train_val_cnts.index[0]
+            self.most_common_class = self.train_classes[self.train_classes==self.most_common_class]
+    
 
     def transform(self, y_test):
-        check_is_fitted(self, 'classes')
+        check_is_fitted(self, 'train_classes')
         y_test = pd.Series(y_test, dtype=np.object)
-        self.test_classes = pd.Series(y_test.unique())
+        self.test_classes = pd.Series(pd.Series(np.unique(y_test)))
         if self.retain_nan:
-            self.test_classes = self.test_classes[np.invert(self.test_classes.isin(self.nan_classes))]
-        invert_s = pd.Series(index=self.classes, 
-                             data=self.classes.index.values, dtype=np.object)
+            test_in_nan = self.test_classes.isin(self.nan_classes)
+            self.test_classes = self.test_classes[~test_in_nan]
+        invert_s = pd.Series(index=self.train_classes, 
+                             data=self.train_classes.index.values, 
+                             dtype=np.object)
         inds_s = y_test.map(invert_s)
-        
         if self.retain_nan:
             inds_s = self._ind_to_nan(inds_s, y_test)
-        
-        diff = np.setdiff1d(self.test_classes, self.classes) #set(test_classes) - set(self.classes)
+        test_in_train = self.test_classes.isin(self.train_classes)
+        diff = self.test_classes[~test_in_train]
         if list(diff):
-            warnings.warn("y contains new labels!")
+            print "y contains new labels!"
             self.unknown_classes = diff
             is_unknown_cls = y_test.isin(self.unknown_classes)
-            if pd.isnull(self.unknown_classes).any():
-                is_nan_cls = y_test.isnull()
-                is_unknown_cls = is_unknown_cls | is_nan_cls
             if self.use_mode:
-                inds_s[is_unknown_cls] = 0
+                is_mode = self.train_classes == self.most_common_class.values[0]
+                inds_s[is_unknown_cls] = self.most_common_class.index.values[0]
             else:
-                inds_s[is_unknown_cls] = len(self.classes)
+                inds_s[is_unknown_cls] = self.train_classes.index[-1]+1
             if self.drop_unknown_classes:
-                inds_s = inds_s[np.invert(is_unknown_cls)]
-        
+                inds_s = inds_s[~is_unknown_cls]
         if not self.retain_nan:
             inds_s = inds_s.astype(np.int64)
-            
         return inds_s.values
 
-            
-
-    def inverse_transform(self, y):
-
-        #is y a numpy array?
-        assert type(y).__module__ == np.__name__
-        
-        check_is_fitted(self, 'classes')
-        out_of_range_values = np.setdiff1d(y, range(len(self.classes)))
-        is_out_of_range = np.in1d(y, out_of_range_values)
-        has_out_of_range = np.any(is_out_of_range)
-        if has_out_of_range:
-            warnings.warn("y contains unknown labels")
-            z = np.empty(np.size(y), dtype=np.object)
-            is_in_range = np.invert(is_out_of_range)
-            z[is_in_range] = self.classes[y[is_in_range]]
-            z[is_out_of_range] = "unknown"
-            return z
-        else:
-            return self.classes[y]
-
     def _ind_to_nan(self, indcs, y):
-        l = self.nan_classes
+        l = list(self.nan_classes)
         if np.nan in l:
             indcs[pd.isnull(y)] = np.nan
             l.remove(np.nan)
         for nanclass in l:
             indcs[y==nanclass] = nanclass
         return indcs    
-                
+    
+    def inverse_transform(self, indcs):
+        #is y a numpy array?
+        assert type(indcs).__module__ == np.__name__
+        check_is_fitted(self, 'train_classes')
+        indcs = pd.Series(indcs)
+        is_in_range = indcs.isin(self.train_classes.index)
+        is_out_of_range = np.invert(is_in_range)
+        if is_out_of_range.any():
+            print "vector contains unknown indices!"
+            z = np.empty(np.size(indcs), dtype=np.object)
+            z[is_in_range] = self.train_classes[indcs[is_in_range]]
+            z[is_out_of_range] = "unknown"
+            if self.retain_nan==True:
+                z = self._ind_to_nan(z, indcs)
+            return z
+        else:
+            return self.train_classes[indcs]
 
 
         
