@@ -28,14 +28,16 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
         self.train_val_cnts = self.y_train.value_counts(dropna=False)
         self.train_classes = pd.Series(self.train_val_cnts.index.values)
         if self.retain_nan:
-            self.train_classes = self.train_classes[~self.train_classes.isin(self.nan_classes)]
+            train_in_nan = self.train_classes.isin(self.nan_classes)
+            self.train_classes = self.train_classes[~train_in_nan]
         if self.use_mode:
             self.most_common_class = self.train_classes.iloc[:1]
 
     def transform(self, y_test):
         check_is_fitted(self, 'train_classes')
-        y_test = pd.Series(y_test, dtype=np.object)
-        self.test_classes = pd.Series(pd.Series(np.unique(y_test)))
+        self.y_test = pd.Series(y_test, dtype=np.object)
+        self.test_value_cnts = self.y_test.value_counts(dropna=False)
+        self.test_classes = pd.Series(self.test_value_cnts.index.values)
         if self.retain_nan:
             test_in_nan = self.test_classes.isin(self.nan_classes)
             self.test_classes = self.test_classes[~test_in_nan]
