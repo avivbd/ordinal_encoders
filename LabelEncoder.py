@@ -25,14 +25,12 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
 
     def fit(self, y_train):
         self.y_train = pd.Series(y_train, dtype=np.object)
-        self.train_classes = pd.Series(np.unique(self.y_train))
+        self.train_val_cnts = self.y_train.value_counts(dropna=False)
+        self.train_classes = pd.Series(self.train_val_cnts.index.values)
         if self.retain_nan:
             self.train_classes = self.train_classes[~self.train_classes.isin(self.nan_classes)]
         if self.use_mode:
-            self.train_val_cnts = self.y_train.value_counts(dropna=False)
-            self.most_common_class = self.train_val_cnts.index[0]
-            self.most_common_class = self.train_classes[self.train_classes==self.most_common_class]
-    
+            self.most_common_class = self.train_classes.iloc[:1]
 
     def transform(self, y_test):
         check_is_fitted(self, 'train_classes')
@@ -60,7 +58,9 @@ class LabelEncoder(BaseEstimator, TransformerMixin):
                 inds_s[is_unknown_cls] = self.train_classes.index[-1]+1
             if self.drop_unknown_classes:
                 inds_s = inds_s[~is_unknown_cls]
-        if not self.retain_nan:
+        if self.retain_nan and np.isnan(self.nan_classes).all():
+            inds_s = inds_s.astype(np.float64)
+        elif not self.retain_nan:
             inds_s = inds_s.astype(np.int64)
         return inds_s.values
 
